@@ -13,6 +13,8 @@ const teamsMeetingJoinButton = document.getElementById('join-meeting-button');
 const callStateElement = document.getElementById('call-state');
 const recordingStateElement = document.getElementById('recording-state');
 const raisedHandsButton = document.getElementById('get-raised-hands-button');
+const getMeetingParticipants = document.getElementById('get-meeting-participants');
+
 
 const acsUserAccessToken = consts.ACS_USER_ACCESS_TOKEN;
 
@@ -23,6 +25,18 @@ async function init() {
     teamsMeetingJoinButton.disabled = false;
 }
 init();
+
+getMeetingParticipants.addEventListener("click", async () => {
+    const participants = call.remoteParticipants;
+    console.log(participants.length + " participants in the call");
+    // enumerate the participants and log their ids
+    if (participants.length > 0) {
+        participants.forEach(participant => {
+            console.log(participant.identifier);
+        });
+    }
+});
+
 
 raisedHandsButton.addEventListener("click", async () => {
     const raiseHandFeature = call.feature(Features.RaiseHand);
@@ -77,4 +91,5 @@ teamsMeetingJoinButton.addEventListener("click", () => {
     hangUpButton.disabled = false;
     teamsMeetingJoinButton.disabled = false;
     raisedHandsButton.disabled = false;
+    getMeetingParticipants.disabled = false;
 });
