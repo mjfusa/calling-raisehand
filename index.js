@@ -20,9 +20,16 @@ const acsUserAccessToken = consts.ACS_USER_ACCESS_TOKEN;
 
 async function init() {
     const callClient = new CallClient();
-    const tokenCredential = new AzureCommunicationTokenCredential(acsUserAccessToken);
-    callAgent = await callClient.createCallAgent(tokenCredential, { displayName: 'Test user' });
-    teamsMeetingJoinButton.disabled = false;
+    var tokenCredential;
+    try {
+        tokenCredential = new AzureCommunicationTokenCredential(acsUserAccessToken);
+        callAgent = await callClient.createCallAgent(tokenCredential, { displayName: 'Test user' });
+        teamsMeetingJoinButton.disabled = false;
+    } catch (e) {
+        console.error(e);
+        callStateElement.innerText = e.message;
+    }
+
 }
 init();
 
@@ -48,7 +55,6 @@ raisedHandsButton.addEventListener("click", async () => {
             console.log(participant.identifier);
         });
     }
-
 });
 
 
@@ -71,20 +77,20 @@ teamsMeetingJoinButton.addEventListener("click", () => {
 
     call.on('stateChanged', () => {
         callStateElement.innerText = call.state;
-    })
-
+    });
 
     // get the raise hand feature
     const raiseHandFeature = call.feature(Features.RaiseHand);
-    raiseHandFeature.on('raisedHandChanged', (event) => {
-        console.log(`Participant ${event.identifier} raised hand`);
-    });
-
+    // Event handlers
+    const raisedHandChangedHandler = (event) => {
+        console.log(`Participant kind: ${event.identifier.kind} raised hand. Id: ${event.identifier.microsoftTeamsUserId}`);
+    };
+    raiseHandFeature.on('raisedHandEvent', raisedHandChangedHandler);
 
     const loweredHandChangedHandler = (event) => {
-        console.log(`Participant ${event.identifier} lowered hand`);
+        console.log(`Participant kind: ${event.identifier.kind} lowered hand. Id: ${event.identifier.microsoftTeamsUserId}`);
     };
-    raiseHandFeature.on('loweredHandChanged', loweredHandChangedHandler);
+    raiseHandFeature.on('loweredHandEvent', loweredHandChangedHandler);
 
 
     // toggle button states
