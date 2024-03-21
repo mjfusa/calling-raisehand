@@ -5,6 +5,7 @@ import consts from "./devConstants";
 
 let call;
 let callAgent;
+let IdDisplayName = [];
 const meetingLinkInput = document.getElementById('teams-link-input');
 const meetingIdInput = document.getElementById('teams-meetingId-input');
 const meetingPasscodeInput = document.getElementById('teams-passcode-input');
@@ -12,11 +13,18 @@ const hangUpButton = document.getElementById('hang-up-button');
 const teamsMeetingJoinButton = document.getElementById('join-meeting-button');
 const callStateElement = document.getElementById('call-state');
 const recordingStateElement = document.getElementById('recording-state');
-const raisedHandsButton = document.getElementById('get-raised-hands-button');
-const getMeetingParticipants = document.getElementById('get-meeting-participants');
-
-
 const acsUserAccessToken = consts.ACS_USER_ACCESS_TOKEN;
+const muteMicAndSpeakerButton = document.getElementById('mute-mic-and-speaker-button');
+
+muteMicAndSpeakerButton.addEventListener("click", () => {
+    // Mute microphone and speaker
+    call.mute().then(() => {
+        console.log('Microphone muted');
+    });
+    call.muteIncomingAudio().then(() => {
+        console.log('Incoming audio muted');
+    });
+});
 
 async function init() {
     const callClient = new CallClient();
@@ -32,31 +40,6 @@ async function init() {
 
 }
 init();
-
-getMeetingParticipants.addEventListener("click", async () => {
-    const participants = call.remoteParticipants;
-    console.log(participants.length + " participants in the call");
-    // enumerate the participants and log their ids
-    if (participants.length > 0) {
-        participants.forEach(participant => {
-            console.log(participant.identifier);
-        });
-    }
-});
-
-
-raisedHandsButton.addEventListener("click", async () => {
-    const raiseHandFeature = call.feature(Features.RaiseHand);
-    let participantsWithRaisedHands = raiseHandFeature.getRaisedHands();
-    console.log(participantsWithRaisedHands.length + " participants have raised their hands");
-    // enumerate the participants and log their ids
-    if (participantsWithRaisedHands.length > 0) {
-        participantsWithRaisedHands.forEach(participant => {
-            console.log(participant.identifier);
-        });
-    }
-});
-
 
 hangUpButton.addEventListener("click", async () => {
     // end the current call
@@ -79,23 +62,73 @@ teamsMeetingJoinButton.addEventListener("click", () => {
         callStateElement.innerText = call.state;
     });
 
-    // get the raise hand feature
+    // // Mute microphone and speaker
+    // call.mute().then(() => {
+    //     console.log('Microphone muted');
+    // });
+    // call.muteIncomingAudio().then(() => {
+    //     console.log('Incoming audio muted');
+    // });
+
+    // Display raised hands
     const raiseHandFeature = call.feature(Features.RaiseHand);
-    // Event handlers
     const raisedHandChangedHandler = (event) => {
         console.log(`Participant kind: ${event.identifier.kind} raised hand. Id: ${event.identifier.microsoftTeamsUserId}`);
+        document.getElementById('raised-hands').innerText = "";
+        document.getElementById('raised-hands').innerText = `Raised hands: ${raiseHandFeature.getRaisedHands().length} \n`;
+        raiseHandFeature.getRaisedHands().forEach(participant => {
+            console.log(participant.identifier);
+            var t = IdDisplayName.filter((num) => num.key === participant.identifier.microsoftTeamsUserId);
+
+            document.getElementById('raised-hands').innerText += t[0].value + '\n';
+        });
+
     };
     raiseHandFeature.on('raisedHandEvent', raisedHandChangedHandler);
+    raiseHandFeature.on('loweredHandEvent', raisedHandChangedHandler);
 
-    const loweredHandChangedHandler = (event) => {
-        console.log(`Participant kind: ${event.identifier.kind} lowered hand. Id: ${event.identifier.microsoftTeamsUserId}`);
+    // Display Lobby status
+    const lobby = call.lobby;
+    const lobbyParticipantsUpdatedHandler = (event) => {
+        var lobbyParticipantsDiv = document.getElementById('in-lobby-participants');
+        let lobbyParticipants = lobby.participants;
+        lobbyParticipantsDiv.innerText = "";
+        lobbyParticipantsDiv.innerText = `Lobby participants: ${lobbyParticipants.length} \n`;
+        lobbyParticipants.forEach(participant => {
+            console.log(participant.identifier);
+            lobbyParticipantsDiv.innerText += participant._displayName + '\n';
+        });
+
     };
-    raiseHandFeature.on('loweredHandEvent', loweredHandChangedHandler);
+    call.lobby.on('lobbyParticipantsUpdated', lobbyParticipantsUpdatedHandler);
 
+    // Display in meeting participants
+    const remoteParticipantsUpdatedHandler = () => {
+        const participants = call.remoteParticipants;
+        const inMeetingParticipants = document.getElementById('in-meeting-participants');
+        inMeetingParticipants.innerHTML = "";
+        inMeetingParticipants.innerHTML = `In Meeting Participants: ${participants.length} </br>`;
+        participants.forEach(participant => {
+            IdDisplayName.push({ key: participant.identifier.microsoftTeamsUserId, value: participant._displayName });
+            inMeetingParticipants.innerHTML += `${participant._displayName} Is Muted: ${participant.isMuted} State: ${participant.state}</br>`;
+        });
+    };
+    call.on('remoteParticipantsUpdated', remoteParticipantsUpdatedHandler);
 
     // toggle button states
     hangUpButton.disabled = false;
     teamsMeetingJoinButton.disabled = false;
-    raisedHandsButton.disabled = false;
-    getMeetingParticipants.disabled = false;
+    muteMicAndSpeakerButton.disabled = false;
+
+    var sleep = duration => new Promise(resolve => setTimeout(resolve, duration))
+    var poll = (promiseFn, duration) => promiseFn().then(
+        sleep(duration).then(() => poll(promiseFn, duration)))
+
+    poll(() => new Promise(() => remoteParticipantsUpdatedHandler()), 1000)
 });
+
+
+
+
+
+
